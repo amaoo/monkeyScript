@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Quick switching of AWS regions (Tokyo | N.Virginia)
 // @namespace    aws-region-quick-switch
-// @version      9.0
+// @version      9.1
 // @description  Add a quick switch button in the AWS top area (Tokyo | N.Virginia)
 // @match        *://console.aws.amazon.com/*
 // @match        *://*.console.aws.amazon.com/*
 // @grant        none
 // @run-at       document-idle
+// @updateURL    https://raw.githubusercontent.com/amaoo/monkeyScript/main/aws-region-quick-switch.user.js
+// @downloadURL  https://raw.githubusercontent.com/amaoo/monkeyScript/main/aws-region-quick-switch.user.js
 // ==/UserScript==
 
 (function () {
