@@ -12,10 +12,33 @@
 (function () {
   'use strict';
 
-  const TARGETS = [
-    { code: 'ap-northeast-1', label: 'Tokyo' },
-    { code: 'us-east-1', label: 'N.Virginia' }
-  ];
+  const TARGET_CODES = ['ap-northeast-1', 'us-east-1'];
+
+  // 按 AWS 控制台当前界面语言显示对应文案，默认英文
+  const LABELS = {
+    en: { 'ap-northeast-1': 'Tokyo', 'us-east-1': 'N. Virginia' },
+    zh: { 'ap-northeast-1': '东京', 'us-east-1': '弗吉尼亚北部' },
+    ja: { 'ap-northeast-1': '東京', 'us-east-1': 'バージニア北部' }
+  };
+
+  function detectLangKey() {
+    // AWS 控制台切换界面语言时，<html lang="..."> 会跟着变（比如 zh-CN / ja / en-US），
+    // 这是最直接的判断依据；取不到就退回浏览器语言，最后兜底英文
+    let lang = '';
+    try {
+      lang = (document.documentElement.lang || navigator.language || '').toLowerCase();
+    } catch (e) {
+      lang = (navigator.language || '').toLowerCase();
+    }
+    if (lang.startsWith('zh')) return 'zh';
+    if (lang.startsWith('ja')) return 'ja';
+    return 'en';
+  }
+
+  function getLabel(code) {
+    const key = detectLangKey();
+    return (LABELS[key] && LABELS[key][code]) || LABELS.en[code] || code;
+  }
 
   const MORE_MENU_BUTTON_SELECTOR = '[data-testid="awsc-nav-more-menu"]';
   // 区域(Regions)下拉触发按钮的 testid：折叠在"更多"面板里时是 more-menu__ 前缀，
@@ -114,12 +137,12 @@
       vertical-align:middle;
     `;
 
-    TARGETS.forEach((t, i) => {
+    TARGET_CODES.forEach((code, i) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = t.label;
-      btn.title = t.code;
-      btn.dataset.region = t.code;
+      btn.textContent = getLabel(code);
+      btn.title = code;
+      btn.dataset.region = code;
       btn.style.cssText = `
         border:none;
         ${i === 0 ? 'border-right:1px solid rgba(255,255,255,0.22);' : ''}
@@ -141,7 +164,7 @@
       btn.addEventListener('mouseleave', () => {
         if (btn.dataset.active !== '1') btn.style.background = 'transparent';
       });
-      btn.addEventListener('click', () => goToRegion(t.code));
+      btn.addEventListener('click', () => goToRegion(code));
       wrap.appendChild(btn);
     });
 
