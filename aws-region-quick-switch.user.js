@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick switching of AWS regions (Tokyo | N.Virginia)
 // @namespace    aws-region-quick-switch
-// @version      8.0
+// @version      9.0
 // @description  Add a quick switch button in the AWS top area (Tokyo | N.Virginia)
 // @match        *://console.aws.amazon.com/*
 // @match        *://*.console.aws.amazon.com/*
@@ -14,16 +14,27 @@
 
   const TARGET_CODES = ['ap-northeast-1', 'us-east-1'];
 
+  // 全球服务的 URL 路径关键词（不区分大小写）
+  const GLOBAL_SERVICE_PATTERNS = [
+    'cloudfront',
+    'route53',
+    'iam',
+    'waf',
+    'shield',
+    'budgets',
+    'organizations',
+    'route53domains',
+    'globalaccelerator'
+  ];
+
   // 按 AWS 控制台当前界面语言显示对应文案，默认英文
   const LABELS = {
-    en: { 'ap-northeast-1': 'Tokyo', 'us-east-1': 'N. Virginia' },
-    zh: { 'ap-northeast-1': '东京', 'us-east-1': '弗吉尼亚北部' },
-    ja: { 'ap-northeast-1': '東京', 'us-east-1': 'バージニア北部' }
+    en: { 'ap-northeast-1': 'Tokyo', 'us-east-1': 'N. Virginia', 'global': 'Global' },
+    zh: { 'ap-northeast-1': '东京', 'us-east-1': '弗吉尼亚北部', 'global': '全球' },
+    ja: { 'ap-northeast-1': '東京', 'us-east-1': 'バージニア北部', 'global': 'グローバル' }
   };
 
   function detectLangKey() {
-    // AWS 控制台切换界面语言时，<html lang="..."> 会跟着变（比如 zh-CN / ja / en-US），
-    // 这是最直接的判断依据；取不到就退回浏览器语言，最后兜底英文
     let lang = '';
     try {
       lang = (document.documentElement.lang || navigator.language || '').toLowerCase();
@@ -40,14 +51,20 @@
     return (LABELS[key] && LABELS[key][code]) || LABELS.en[code] || code;
   }
 
+  function isGlobalService() {
+    try {
+      const href = window.location.href.toLowerCase();
+      return GLOBAL_SERVICE_PATTERNS.some(pattern => href.includes(pattern));
+    } catch (e) {
+      return false;
+    }
+  }
+
   const MORE_MENU_BUTTON_SELECTOR = '[data-testid="awsc-nav-more-menu"]';
-  // 区域(Regions)下拉触发按钮的 testid：折叠在"更多"面板里时是 more-menu__ 前缀，
-  // 宽屏未折叠时可能是不带前缀的版本，两个都兼容一下
   const REGIONS_BUTTON_SELECTORS = [
     '[data-testid="more-menu__awsc-nav-regions-menu-button"]',
     '[data-testid="awsc-nav-regions-menu-button"]'
   ];
-  // 设置齿轮触发按钮的 testid，同样两种前缀都兼容
   const SETTINGS_BUTTON_SELECTORS = [
     '[data-testid="more-menu__awsc-nav-quick-settings-button"]',
     '[data-testid="awsc-nav-quick-settings-button"]'
@@ -76,14 +93,11 @@
   }
 
   function getCurrentRegionCode() {
-    // 优先从 URL 的 region 参数判断当前区域，这个在页面刚加载完就有，
-    // 不需要等区域下拉列表异步渲染/打勾，反应速度比读 --selected class 快得多
     try {
       const href = window.top.location.href;
       const match = href.match(/[?&#]region=([a-z0-9-]+)/i);
       if (match) return match[1];
     } catch (e) {
-      // 跨域访问 window.top 失败时退回当前 frame 的 location
       const match = window.location.href.match(/[?&#]region=([a-z0-9-]+)/i);
       if (match) return match[1];
     }
@@ -91,21 +105,24 @@
   }
 
   function isSelected(code, link) {
+    // 全球服务特殊处理
+    if (code === 'global') return isGlobalService();
+
     const current = getCurrentRegionCode();
     if (current) return current === code;
-    // 兜底：URL 里没有 region 参数时，才退回读列表里的 --selected class
     return !!link && /--selected/.test(link.className);
   }
 
   function goToRegion(code, tries = 0) {
+    // 全球服务不跳转
+    if (code === 'global') return;
+
     const link = getRegionLink(code);
     if (link && link.href) {
       window.top.location.href = link.href;
       return;
     }
 
-    // 区域链接只有在"更多"面板 -> 区域(Regions)下拉都展开后才会渲染到 DOM 里，
-    // 所以先后把这两层依次点开，再重试查找链接
     if (tries === 0) {
       const moreBtn = document.querySelector(MORE_MENU_BUTTON_SELECTOR);
       if (moreBtn && moreBtn.getAttribute('aria-expanded') !== 'true') moreBtn.click();
@@ -137,44 +154,85 @@
       vertical-align:middle;
     `;
 
-    TARGET_CODES.forEach((code, i) => {
+    if (isGlobalService()) {
+      // 全球服务：显示单个按钮
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = getLabel(code);
-      btn.title = code;
-      btn.dataset.region = code;
+      btn.textContent = getLabel('global');
+      btn.title = 'Global Service';
+      btn.dataset.region = 'global';
       btn.style.cssText = `
         border:none;
-        ${i === 0 ? 'border-right:1px solid rgba(255,255,255,0.22);' : ''}
         background:transparent;
         color:#d5dde8;
         font-size:11px;
         line-height:18px;
         height:18px;
         padding:0 7px;
-        cursor:pointer;
+        cursor:default;
         white-space:nowrap;
         font-family:inherit;
         flex:0 0 auto;
         transition:background .12s;
       `;
-      btn.addEventListener('mouseenter', () => {
-        if (btn.dataset.active !== '1') btn.style.background = 'rgba(255,255,255,0.14)';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        // 全球服务点击无动作
       });
-      btn.addEventListener('mouseleave', () => {
-        if (btn.dataset.active !== '1') btn.style.background = 'transparent';
-      });
-      btn.addEventListener('click', () => goToRegion(code));
       wrap.appendChild(btn);
-    });
+    } else {
+      // 区域服务：显示两个区域按钮
+      TARGET_CODES.forEach((code, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = getLabel(code);
+        btn.title = code;
+        btn.dataset.region = code;
+        btn.style.cssText = `
+          border:none;
+          ${i === 0 ? 'border-right:1px solid rgba(255,255,255,0.22);' : ''}
+          background:transparent;
+          color:#d5dde8;
+          font-size:11px;
+          line-height:18px;
+          height:18px;
+          padding:0 7px;
+          cursor:pointer;
+          white-space:nowrap;
+          font-family:inherit;
+          flex:0 0 auto;
+          transition:background .12s;
+        `;
+        btn.addEventListener('mouseenter', () => {
+          if (btn.dataset.active !== '1') btn.style.background = 'rgba(255,255,255,0.14)';
+        });
+        btn.addEventListener('mouseleave', () => {
+          if (btn.dataset.active !== '1') btn.style.background = 'transparent';
+        });
+        btn.addEventListener('click', () => goToRegion(code));
+        wrap.appendChild(btn);
+      });
+    }
 
     return wrap;
   }
 
   function refreshActiveState(wrap) {
     if (!wrap) return;
+    const globalService = isGlobalService();
+
     wrap.querySelectorAll('button[data-region]').forEach((btn) => {
-      const active = isSelected(btn.dataset.region, getRegionLink(btn.dataset.region));
+      const code = btn.dataset.region;
+      let active;
+
+      if (globalService) {
+        // 全球服务时只有全球按钮高亮
+        active = (code === 'global');
+      } else {
+        // 区域服务时按正常逻辑判断
+        active = isSelected(code, getRegionLink(code));
+      }
+
       btn.dataset.active = active ? '1' : '0';
       btn.style.background = active ? '#ec7211' : 'transparent';
       btn.style.color = active ? '#fff' : '#d5dde8';
@@ -189,9 +247,6 @@
       return;
     }
 
-    // settingsBtn 的直接父级是包住"齿轮按钮 + 下拉面板"的 _nav-dropdown_ 容器，
-    // 再往上一层的 <li> 就是设置齿轮自己独占的那个盒子，宽度只够放它一个图标按钮，
-    // 不能往里面塞别的东西（会被挤到下一行）。所以改成新建一个同级 <li>，插在它后面。
     const settingsDropdownWrap = settingsBtn.closest('div[class*="_nav-dropdown_"]');
     const settingsLi = settingsDropdownWrap && settingsDropdownWrap.closest('li');
 
@@ -204,8 +259,6 @@
       const widget = buildWidget();
       const li = document.createElement('li');
       li.id = WIDGET_LI_ID;
-      // 复用设置齿轮 <li> 的 class，保证跟"更多"面板里其它项的高度/间距行为一致，
-      // 再额外加一层 flex 居中，避免这个盒子内部对齐基准跟原来装图标按钮时不一样
       li.className = settingsLi.className;
       li.style.display = 'flex';
       li.style.alignItems = 'center';
@@ -235,6 +288,8 @@
     attributeFilter: ['class']
   });
 
-  // 轮询只是兜底，防止个别场景下 class 变化没能触发 MutationObserver
-  setInterval(() => refreshActiveState(document.getElementById(WIDGET_ID)), 500);
+  // 轮询更新高亮状态，同时检测服务类型变化（用户可能在不同服务间切换）
+  setInterval(() => {
+    refreshActiveState(document.getElementById(WIDGET_ID));
+  }, 500);
 })();
