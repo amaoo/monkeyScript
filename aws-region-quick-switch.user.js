@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick switching of AWS regions (Tokyo | N.Virginia)
 // @namespace    amaoo/aws-region-quick-switch
-// @version      9.6
+// @version      9.7
 // @description  Add a quick switch button in the AWS top area (Tokyo | N.Virginia)
 // @author       amaoo
 // @homepage     https://github.com/amaoo/monkeyScript
@@ -158,7 +158,7 @@
       align-items:center;
       flex:0 0 auto;
       margin:0 2px;
-      height:20px;
+      height:auto;
       border:1px solid rgba(255,255,255,0.28);
       border-radius:11px;
       overflow:hidden;
@@ -177,14 +177,12 @@
         background:transparent;
         color:#d5dde8;
         font-size:11px;
-        line-height:18px;
-        height:18px;
-        padding:0 7px;
+        line-height:1;
+        padding:3px 7px;
         cursor:default;
         white-space:nowrap;
         font-family:inherit;
-        flex:0 0 auto;
-        transition:background .12s;
+        box-sizing:border-box;
       `;
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -205,14 +203,15 @@
           background:transparent;
           color:#d5dde8;
           font-size:11px;
-          line-height:18px;
-          height:18px;
-          padding:0 7px;
+          line-height:1;
+          height:100%;
+          padding:3px 7px;
           cursor:pointer;
           white-space:nowrap;
           font-family:inherit;
           flex:0 0 auto;
           transition:background .12s;
+          box-sizing:border-box;
         `;
         btn.addEventListener('mouseenter', () => {
           if (btn.dataset.active !== '1') btn.style.background = 'rgba(255,255,255,0.14)';
