@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick switching of AWS regions (Tokyo | N.Virginia)
 // @namespace    amaoo/aws-region-quick-switch
-// @version      9.7
+// @version      9.8
 // @description  Add a quick switch button in the AWS top area (Tokyo | N.Virginia)
 // @author       amaoo
 // @homepage     https://github.com/amaoo/monkeyScript
@@ -64,8 +64,9 @@
 
   function isGlobalService() {
     try {
-      const href = window.location.href.toLowerCase();
-      return GLOBAL_SERVICE_PATTERNS.some(pattern => href.includes(pattern));
+      const { origin, pathname } = window.location;
+      const baseUrl = `${origin}${pathname}`.toLowerCase();
+      return GLOBAL_SERVICE_PATTERNS.some(pattern => baseUrl.includes(pattern));
     } catch (e) {
       return false;
     }
