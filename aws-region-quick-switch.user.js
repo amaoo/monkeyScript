@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick switching of AWS regions (Tokyo | N.Virginia)
 // @namespace    amaoo/aws-region-quick-switch
-// @version      9.8
+// @version      9.8.2
 // @description  Add a quick switch button in the AWS top area (Tokyo | N.Virginia)
 // @author       amaoo
 // @homepage     https://github.com/amaoo/monkeyScript
@@ -30,6 +30,8 @@
     'iam',
     'waf',
     'billing',
+    'health',
+    'notifications',
     'costmanagement',
     'shield',
     'budgets',
